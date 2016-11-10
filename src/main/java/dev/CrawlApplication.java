@@ -6,6 +6,7 @@ import org.json.JSONObject;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.json.JsonJsonParser;
@@ -21,70 +22,45 @@ import java.util.List;
 @SpringBootApplication
 public class CrawlApplication {
 
+    public final static String Link = "http://dergipark.gov.tr/api/public/oai/?verb=ListRecords&resumptionToken=";
+    public static String resumptionToken = "";
+
+
     public static void main(String[] args) throws IOException, URISyntaxException {
         SpringApplication.run(CrawlApplication.class, args);
 
         List<JSONObject> articles = new ArrayList();
 
 
-        String Link = "http://dergipark.gov.tr/api/public/oai/?verb=ListRecords";
-
-
-        processLink(articles, Link);
-        while (checkResumptionToken(Link)) {
-            Link = updateLink(Link);
-            processLink(articles, Link);
+        resumptionToken = getRecursiveConnection(Link+resumptionToken);
+        while (!resumptionToken.isEmpty()){
+            resumptionToken = getRecursiveConnection(Link+resumptionToken);
         }
-        generateResults(articles, Link);
+
+
+//        processLink(articles, Link);
+//        generateResults(articles, Link);
 
 
     }
 
 
-    public static String updateLink(String Link) {
-        String resumptionToken = getResumptionToken(Link);
-        Link = Link + "&resumptionToken=" + resumptionToken;
-        return Link;
-    }
-
-    public static boolean checkResumptionToken(String Link) {
+    private static String getRecursiveConnection(String href) throws IOException {
 
 
-        String resumptionToken = "";
-        Document doc = new Document("");
-        try {
-            doc = Jsoup.connect(Link).get();
-        } catch (IOException e) {
-            e.printStackTrace();
+        Document doc;
+        doc = Jsoup.connect(href).get();
+        Elements elements = doc.select("identifier");
+        resumptionToken = doc.select("resumptionToken").first().ownText();
+
+
+        for (Element element : elements) {
+            System.out.println(element.ownText());
+
         }
 
-        if (doc.select("ListRecords").contains("resumptionToken")) {
-            return true;
-        } else {
 
-            return false;
-        }
-
-    }
-
-    public static String getResumptionToken(String Link) {
-
-
-        String resumptionToken = "";
-        Document doc = new Document("");
-        try {
-            doc = Jsoup.connect(Link).get();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-        if (doc.select("ListRecords").contains("resumptionToken")) {
-            return resumptionToken = doc.select("ListRecords").attr("resumptionToken").toString();
-
-        } else {
-
-            return "";
-        }
+        return resumptionToken;
     }
 
 
@@ -92,13 +68,6 @@ public class CrawlApplication {
 
         Document doc = new Document("");
 
-
-        try {
-            doc = Jsoup.connect(Link).get();
-            System.out.println("Connected to site - " + Link);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
 
 
         // JSON LD
